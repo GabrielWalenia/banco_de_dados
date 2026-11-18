@@ -3,61 +3,36 @@
 
 #define TAM_ALFABETO 26
 
-// // A
-// struct atributo{
-//   char valor;
-// };
+typedef char atributos[TAM_ALFABETO];
 
-// A->B
 struct dependencia
 {
-    int num;              // Número de dependencias funcionais
-    struct atributo *lhs; // Vetor de todos os atributos que estão do lado esquerdo
-    struct atributo *rhs; // Vetor de todos os atributos que estão do lado direito
+    atributos lhs; // atributos que estão do lado esquerdo
+    atributos rhs; // atributos que estão do lado direito
 };
 
-// struct que representa a relação R(A, B, ...)
+struct lista_dependencias
+{
+    struct dependencia *dep;
+    int size;
+};
 
-// struct que representa a dependencia funcianal A->B
-// struct dependencia
-// {
-//     struct atributo *lhs;
-//     struct atributo *rhs;
-// };
-
-// struct que representa o conjuto de dependencias funcionais
-// struct restricoes
-// {
-//     struct dependencia *dependencias;
-// };
-// O atributo possui o valor e um ponteiro para o seu determinado
-// se houver
 struct relacao
 {
     struct atributo *r;
     int num_elementos;
 };
 
-struct lista_t
-{
-    struct atributo *primeiro;
-    struct atributo *ultimo;
-    int num;
-};
-struct atributo
-{
-    int tam;
-    char attributes[TAM_ALFABETO];
-    struct atributo *determina;
-};
-
 // Calcula o fecho do atributo
-struct atributo **closure(struct atributo *atr, struct dependencia *d, int tam);
+char *closure(atributos atr, struct lista_dependencias *d);
+
 // Calcula a cobertura minima da relação
-int mincover(struct dependencia *d);
+struct lista_dependencias *mincover(struct lista_dependencias *d);
+
 // Calcula as chaves candidatas
-struct atributo *keys(struct atributo *atr, struct dependencia *d, struct relacao *r);
+atributos *keys(struct lista_dependencias *d, int *num_chaves);
+
 // Verifica se está na forma normal 3FN e BCNF
-int normalform(struct relacao *r);
+void normalform(struct lista_dependencias *d);
 
 #endif
