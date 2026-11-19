@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "fdtool.h"
+#include "entrada.h"
+
+#define VIOLATIONS_LIST_SIZE 64
 
 // -----------------------------------------------------------------------------------------
 // Funções do fecho
@@ -59,14 +63,126 @@ char *closure(atributos atr, struct lista_dependencias *d)
 // -----------------------------------------------------------------------------------------
 // Funções da cobertura minima
 
-void separar_lado_direito(struct lista_dependencias *c)
+void separar_lado_direito(struct lista_dependencias *antiga,
+                          struct lista_dependencias *c)
 {
+  struct dependencia d;
+
+  for (int i = 0; i < antiga->size; i++)
+  {
+    d = antiga->dep[i];
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (d.rhs[j])
+      {
+        struct dependencia nova_dependencia = {0};
+
+        memcpy(nova_dependencia.lhs, d.lhs, sizeof(d.lhs));
+        nova_dependencia.rhs[j] = 1;
+
+        c->dep[c->size] = nova_dependencia;
+        c->size++;
+      }
+    }
+  }
+}
+
+//  aux->size = c->size -1;
+//     aux->dep = malloc(sizeof(struct dependencia) * aux->size);
+
+//     int cont = 0;
+
+//     for(int j = 0; j < c->size; j++){
+//       if(i != j){
+//         aux->dep[cont] = c->dep[j];
+//         cont++;
+//       }
+//     }
+
+bool verificar_conjuto(atributos rhs, char *fecho)
+{
+  for (int i = 0; i < TAM_ALFABETO; i++)
+  {
+    // Se o atributo de rhs está no fecho
+    if (rhs[i] && fecho[i])
+    {
+      return true;
+    }
+  }
+  return false;
 }
 void tirar_atributos_desnecessarios(struct lista_dependencias *c)
 {
+  for (int i = 0; i < c->size; i++)
+  {
+    struct dependencia *d = &c->dep[i];
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (d->lhs[j])
+      {
+        atributos temp = {0};
+        memcpy(temp, d->lhs, sizeof(atributos));
+        temp[j] = 0;
+
+        atributos atr;
+        char *fecho;
+        memcpy(atr, temp, sizeof(atributos));
+        fecho = closure(atr, c);
+
+        bool desnecessario = false;
+        if (verificar_conjuto(d->rhs, fecho))
+        {
+          desnecessario = true;
+        }
+
+        if (desnecessario)
+          d->lhs[j] = 0;
+      }
+    }
+  }
 }
 void tirar_transitividade(struct lista_dependencias *c)
 {
+  for (int i = 0; i < c->size; i++)
+  {
+    struct dependencia d = c->dep[i];
+    struct lista_dependencias temp;
+    temp.size = c->size - 1;
+
+    temp.dep = malloc(sizeof(struct dependencia) * temp.size);
+
+    int cont = 0;
+    for (int j = 0; j < c->size; j++)
+    {
+      if (i != j)
+      {
+        temp.dep[cont] = c->dep[j];
+        cont++;
+      }
+    }
+
+    atributos atr = {0};
+    memcpy(atr, d.lhs, sizeof(atributos));
+    char *fecho = closure(atr, &temp);
+
+    bool redundante = false;
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (verificar_conjuto(d.rhs, fecho))
+      {
+        redundante = true;
+      }
+    }
+
+    if (redundante)
+    {
+      c->dep[i] = c->dep[c->size - 1];
+      c->size--;
+      i--;
+    }
+
+    free(temp.dep);
+  }
 }
 
 struct lista_dependencias *mincover(struct lista_dependencias *d)
@@ -81,76 +197,293 @@ struct lista_dependencias *mincover(struct lista_dependencias *d)
     return NULL;
   }
 
-  struct lista_dependencias *cobertura_minima;
-  // Por enquanto a cobertura minima é uma cópia das dependencias passadas
-  cobertura_minima->size = d->size;
-  cobertura_minima->dep = malloc(sizeof(struct dependencia) * cobertura_minima->size);
+  struct lista_dependencias *cobertura_minima = malloc(sizeof(struct lista_dependencias));
+  if (cobertura_minima == NULL)
+    return NULL;
 
-  separar_lado_direito(cobertura_minima);
+  // Por enquanto a cobertura minima é uma cópia das dependencias passadas
+
+  cobertura_minima->dep = malloc(sizeof(struct dependencia) * d->size * TAM_ALFABETO);
+  cobertura_minima->size = 0;
+
+  separar_lado_direito(d, cobertura_minima);
+
   tirar_atributos_desnecessarios(cobertura_minima);
+
   tirar_transitividade(cobertura_minima);
 
-  // for (int i = 0; i < d->num; i++)
-  // {
-  //   // se o valor for composto então
-  //   //   cria novas DF (numero de elementos do lado direito) com o mesmo lado esquerdo
-  //   //   cada DF recebe um atributo que foi dividido
-  //   // fimse
-  //   if (d->rhs[i].tam > 1)
-  //   {
-  //     tam_anterior = d->num;
-  //     d->num += d->rhs[i].tam;
-  //     d->rhs = realloc(d->rhs, sizeof(struct atributo) * d->num);
-  //     d->lhs = realloc(d->lhs, sizeof(struct atributo) * d->num);
-
-  //     for (int j = tam_anterior; j < d->num; j++)
-  //     {
-  //       d->lhs[j] = d->lhs[i];
-  //       // Possivel erro
-  //       // for (int w = 0; w < d->rhs[i].tam; w++)
-  //       //   novo_atributo.attributes[0] = d->rhs[i].attributes[w];
-  //       // novo_atributo.determina = NULL;
-  //       // novo_atributo.tam = 1;
-  //     }
-  //   }
-  // }
-
-  // for (int i = 0; i < d->num; i++)
-  // {
-  //   // Se lado esquerdo == composto então
-  //   //   Para j = 0 até num_atributos_unidos faca
-  //   //     fecho <- fecho do atributo[j]
-  //   //     se atributo do lado direito pertencer estiver contido em fecho de atributo[j]
-  //   //       excluir atributos não relevantes
-  //   //       parar
-  //   //     fimse
-  //   //   fimpara
-  //   // fimse
-  // }
-
-  // for (int i = 0; i < d->num; i++)
-  // {
-  //   // se dois elementos do lado esquerdo forem iguais
-  //   //   verificar se tem alguem do outro apontando para ele
-  //   //   se verdadeiro
-  //   //     tirar dependencia
-  //   //   fimse
-  //   // fimse
-  // }
-  // for (int i = 0; i < d->num; i++)
-  // {
-  //   // se dois elementos do lado esquerdo forem iguais e dois elementos do lado direito forem iguais
-  //   //   retirar DF's até sobrar apenas uma
-  //   // fimse
-  // }
-
-  return 0;
+  return cobertura_minima;
 }
-atributos *keys(struct lista_dependencias *d, int *num_chaves)
+
+// ----------------------------------------------------------------------------------------
+// Funcões da chave
+
+// MUDAR
+atributos universo = {0};
+
+typedef struct Node
 {
+  /**
+   * @var Conjunto de atributos.
+   */
+  atributos attrs;
 
+  /**
+   * @var Ponteiro para próximo nó.
+   */
+  struct Node *next;
+} Node;
+
+/**
+ * @brief Esta estrutura define uma fila. Usada para
+ * encontrar as chaves candidatas usando BFS.
+ */
+typedef struct Queue
+{
+  /**
+   * var Ponteiro para o início da fila;
+   */
+  struct Node *front;
+
+  /**
+   * var Ponteiro para o final da fila;
+   */
+  struct Node *back;
+} Queue;
+
+/**
+ * @brief Inicializa uma fila.
+ *
+ * @param q Uma fila.
+ */
+static void queue_init(Queue *q);
+
+/**
+ * @brief Verifica se uma fila está vazia.
+ *
+ * @param q Uma fila.
+ */
+static bool queue_empty(Queue *q);
+
+/**
+ * @brief Enfileira um conjunto de atributos numa fila.
+ *
+ * @param q Uma fila.
+ * @param attrSet Conjunto de atributos.
+ */
+static void enqueue(Queue *q, atributos attrSet);
+
+/**
+ * @brief Retira um conjunto de atributos de uma fila.
+ *
+ * @param q Uma fila.
+ * @param out Conjunto de atributos (saída).
+ */
+static void dequeue(Queue *q, atributos out);
+
+/**
+ * @brief Verifica se conjunto a é um subconjunto do conjunto b.
+ *
+ * @param a Conjunto de atributos.
+ * @param b Conjunto de atributos.
+ * @return True, caso a seja subconjunto de b, False, caso contrário.
+ */
+static bool isSubset(atributos a, atributos b);
+
+/**
+ * @brief Verifica se o conjunto a é coberto pelo fecho.
+ *
+ * @param a Conjunto de atributos.
+ * @param closure Conjunto de atributos.
+ * @return True, caso a seja coberto pelo fecho, False, caso contrário.
+ */
+static bool isCoveredByClosure(atributos a, atributos closure);
+
+static void queue_init(Queue *q)
+{
+  q->back = NULL;
+  q->front = NULL;
+}
+
+static bool queue_empty(Queue *q)
+{
+  return q->front == NULL;
+}
+
+static void enqueue(Queue *q, atributos attrSet)
+{
+  Node *node = (Node *)malloc(sizeof(Node));
+  if (node == NULL)
+  {
+    printf("ERROR! Couldn't allocate memory for Queue Node at file %s at line "
+           "%d\n",
+           __FILE__, __LINE__);
+    exit(1);
+  }
+  memcpy(node->attrs, attrSet, sizeof(atributos));
+  node->next = NULL;
+
+  if (q->back == NULL)
+  {
+    q->front = q->back = node;
+  }
+  else
+  {
+    q->back->next = node;
+    q->back = node;
+  }
+}
+
+static void dequeue(Queue *q, atributos out)
+{
+  if (q->front == NULL)
+  {
+    return;
+  }
+
+  Node *temp = q->front;
+  memcpy(out, temp->attrs, sizeof(atributos));
+  q->front = temp->next;
+  if (q->front == NULL)
+  {
+    q->back = NULL;
+  }
+  free(temp);
+}
+
+static bool isSubset(atributos a, atributos b)
+{
+  for (int i = 0; i < TAM_ALFABETO; i++)
+  {
+    if (a[i] && !b[i])
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool isCoveredByClosure(atributos a, atributos closure)
+{
+  for (int i = 0; i < TAM_ALFABETO; i++)
+  {
+    if (a[i] && !closure[i])
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+atributos *keys(struct lista_dependencias *l, int *num_chaves)
+{
+  atributos essenciais = {0};
+  atributos rhs = {0};
+
+  for (int i = 0; i < l->size; i++)
+  {
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (l->dep[i].rhs[j])
+      {
+        rhs[j] = 1;
+      }
+    }
+  }
+  for (int i = 0; i < TAM_ALFABETO; i++)
+  {
+    if (universo[i] && !rhs[i])
+    {
+      essenciais[i] = true;
+    }
+  }
+
+  Queue q;
+  queue_init(&q);
+  enqueue(&q, essenciais);
+
+  int key_count = 0;
+  int keys_size = 32;
+  atributos *keys = malloc(sizeof(atributos) * keys_size);
+  if (keys == NULL)
+  {
+    printf("ERROR! Couldn't allocate memory to candidate keys array at file %s "
+           "at line %d\n",
+           __FILE__, __LINE__);
+    exit(1);
+  }
+
+  while (!queue_empty(&q))
+  {
+    atributos current = {0};
+    atributos closureSet = {0};
+
+    dequeue(&q, current);
+    memcpy(closureSet, current, sizeof(atributos));
+
+    char *fecho = closure(closureSet, l);
+
+    bool isSuperKey = true;
+    if (!isCoveredByClosure(universo, fecho))
+    {
+      isSuperKey = false;
+    }
+
+    if (isSuperKey)
+    {
+      bool isKeyMinimum = true;
+      for (int i = 0; i < key_count; i++)
+      {
+        if (isSubset(keys[i], current))
+        {
+          isKeyMinimum = false;
+        }
+      }
+
+      if (isKeyMinimum)
+      {
+        memcpy(keys[key_count], current, sizeof(atributos));
+        key_count++;
+        if (key_count >= keys_size)
+        {
+          keys_size *= 2;
+          keys = realloc(keys, sizeof(atributos) * keys_size);
+        }
+      }
+
+      continue;
+    }
+
+    for (size_t i = 0; i < TAM_ALFABETO; i++)
+    {
+      if (!universo[i] || current[i])
+      {
+        continue;
+      }
+
+      atributos next = {0};
+      memcpy(next, current, sizeof(atributos));
+      next[i] = true;
+
+      bool isAlreadySuperKey = false;
+      for (int j = 0; j < key_count; j++)
+      {
+        if (isSubset(keys[j], next))
+        {
+          isAlreadySuperKey = true;
+        }
+      }
+
+      if (!isAlreadySuperKey)
+      {
+        enqueue(&q, next);
+      }
+    }
+  }
+
+  *num_chaves = key_count;
+  return keys;
   // Achar superchaves com o fecho
-
   // Para cada d->lhs[i] pertencente a d faca
   //   calcular fecho do atributo
   //   se fecho == R
@@ -165,249 +498,131 @@ atributos *keys(struct lista_dependencias *d, int *num_chaves)
 
   // Calcular chaves candidatas
   // Retornar conjunto de chaves candidatas
-  return 0;
+}
+
+// --------------------------------------------------------------------------------
+// Funções da forma normal
+
+static bool equals(char *a, char *b)
+{
+  for (int i = 0; i < TAM_ALFABETO; i++)
+  {
+    if (a[i] != b[i])
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 void normalform(struct lista_dependencias *d)
 {
-  int forma = 0;
-  // int forma = 4;
-  // if (!determinante_superchave)
-  // {
-  //   forma = 3;
-  // }
-  // if (dependencia_funcional_transitiva)
-  // {
-  //   forma = 2;
-  // }
-  // if (dependencia_funcional_parcial)
-  // {
-  //   forma = 1;
-  // }
 
-  // Ver se não existem atributos compostos ou multivalorados (1FN)
-  // Ver se não existem dependencias funcionais parciais (2FN)
-  // Ver se não existem dependencias funcionais transitivas (3FN)
-  // Ver se todo lado determinante é uma superchave (BCNF)
+  struct lista_dependencias *cobertura_minima = mincover(d);
+
+  int num_chaves = 0;
+  atributos *k = keys(cobertura_minima, &num_chaves);
+
+  atributos atributo_primo = {0};
+
+  for (int i = 0; i < num_chaves; i++)
+  {
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (k[i][j])
+      {
+        atributo_primo[j] = true;
+      }
+    }
+  }
+
+  atributos BCNFViolationsList[VIOLATIONS_LIST_SIZE];
+  int BCNF_RHS[VIOLATIONS_LIST_SIZE];
+  int BCNFCount = 0;
+
+  atributos _3FNViolationsList[VIOLATIONS_LIST_SIZE];
+  int _3FN_RHS[VIOLATIONS_LIST_SIZE];
+  int _3FNCount = 0;
+
+  for (int i = 0; i < cobertura_minima->size; i++)
+  {
+    struct dependencia dep = cobertura_minima->dep[i];
+    int rhsIdx;
+
+    for (size_t j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (dep.rhs[j])
+      {
+        rhsIdx = j;
+      }
+    }
+
+    if (dep.lhs[rhsIdx])
+    {
+      continue;
+    }
+
+    atributos closureSet = {0};
+    memcpy(closureSet, dep.lhs, sizeof(atributos));
+    char *fecho = closure(closureSet, cobertura_minima);
+
+    bool isSuperkey = equals(fecho, universo);
+    bool rhsIsPrime = atributo_primo[rhsIdx];
+
+    if (!isSuperkey)
+    {
+      memcpy(BCNFViolationsList[BCNFCount], dep.lhs, sizeof(atributos));
+      BCNF_RHS[BCNFCount] = rhsIdx;
+      BCNFCount++;
+    }
+
+    if (!isSuperkey && !rhsIsPrime)
+    {
+      memcpy(_3FNViolationsList[_3FNCount], dep.lhs, sizeof(atributos));
+      _3FN_RHS[_3FNCount] = rhsIdx;
+      _3FNCount++;
+    }
+  }
+
+  if (BCNFCount > 0)
+  {
+    printf("BCNF: VIOLATIONS\n");
+  }
+
+  if (_3FNCount > 0)
+  {
+    printf("3NF: VIOLATIONS\n");
+  }
+
+  for (int i = 0; i < BCNFCount; i++)
+  {
+    printf("VIOLATION BCNF: %s->%c (%s not superkey)\n",
+           gerar_strings(BCNFViolationsList[i]), 'A' + BCNF_RHS[i],
+           gerar_strings(BCNFViolationsList[i]));
+  }
+
+  for (int i = 0; i < _3FNCount; i++)
+  {
+    printf("VIOLATION 3NF: %s->%c (%c not prime, %s not superkey)\n",
+           gerar_strings(_3FNViolationsList[i]), 'A' + _3FN_RHS[i],
+           'A' + _3FN_RHS[i], gerar_strings(_3FNViolationsList[i]));
+  }
 }
-
-/*******************************CODIGO COM PROBLEMAS MUDAR ***************************/
-
-/*************************************************************************************
- ******************************* PUBLIC FUNCTIONS ************************************
- *************************************************************************************/
-
-// void parse(char *path, FDList *list)
+// int forma = 4;
+// if (!determinante_superchave)
 // {
-//   char *content = read_file(path);
-//   int i = 0;
-//   int fd_count = 0;
-//   char c = content[i];
-
-//   list->size = preComputeLength(content);
-//   list->fds = (FD *)malloc(sizeof(FD) * list->size);
-//   if (!list->fds)
-//   {
-//     fprintf(stderr, "ERROR! Couldn't allocate memory for list of functional "
-//                     "dependencies\n");
-//     exit(1);
-//   }
-
-//   while (c != '\0')
-//   {
-//     if (c == '#') // Pular comentários
-//     {
-//       while (content[i] != '\n' && content[i] != '\0')
-//       {
-//         i++;
-//       }
-//     }
-//     else if (c == 'U')
-//     {
-//       while (content[i] != '{' && content[i] != '\0')
-//       {
-//         i++;
-//       }
-//       i++; // Pula '{'
-
-//       while (content[i] != '}' && content[i] != '\0')
-//       {
-//         if (isInAlphabet(content[i]))
-//         {
-//           universe[charToIndex(content[i])] = true;
-//         }
-//         i++;
-//       }
-//     }
-//     else if (c == 'F')
-//     {
-//       while (content[i] != '{' && content[i] != '\0')
-//       {
-//         i++;
-//       }
-//       i++; // Pula '{'
-
-//       while (content[i] != '}' && content[i] != '\0')
-//       {
-//         attributes lhs = {0};
-//         attributes rhs = {0};
-
-// #ifdef _DEBUG_
-//         printf("content[i]: %c, %d, %s\n", content[i], __LINE__, __FILE__);
-// #endif
-
-//         while ((content[i] != '-' && content[i] != '\0'))
-//         {
-//           if (isInAlphabet(content[i]))
-//           {
-//             if (!isInUniverse(content[i]))
-//             {
-//               fprintf(stderr,
-//                       "ERROR! Attribute <%c> doesn't belongs to relation U\n",
-//                       content[i]);
-//               exit(1);
-//             }
-//             lhs[charToIndex(content[i])] = true;
-//           }
-//           i++;
-//         }
-
-//         if (content[i] == '-' && content[i + 1] == '>')
-//         {
-//           i += 2;
-//         }
-
-//         while (isspace(content[i]))
-//           i++;
-
-// #ifdef _DEBUG_
-//         printf("content[i]: %c, line: [%d], at file %s\n", content[i], __LINE__,
-//                __FILE__);
-// #endif
-//         // while ((content[i] != ',' || content[i] == ';') && content[i] != '}'
-//         // && content[i] != '\0')
-//         while (content[i] != ',' && content[i] != ';' && content[i] != '}' &&
-//                content[i] != '\0')
-//         {
-//           if (isalpha(content[i]) &&
-//               (!isInAlphabet(content[i]) || !isInUniverse(content[i])))
-//           {
-//             fprintf(stderr,
-//                     "ERROR! Attribute <%c> doesn't belongs to relation U or "
-//                     "doesn't exists\n",
-//                     content[i]);
-//             exit(1);
-//           }
-//           rhs[charToIndex(content[i])] = true;
-//           i++;
-//         }
-
-//         memcpy(&list->fds[fd_count].lhs, lhs, sizeof(attributes));
-//         memcpy(&list->fds[fd_count].rhs, rhs, sizeof(attributes));
-//         fd_count++;
-
-//         if (content[i] == ',' || content[i] == ';')
-//         {
-//           i++;
-//         }
-//       }
-//     }
-
-//     i++;
-//     c = content[i];
-//   }
+//   forma = 3;
+// }
+// if (dependencia_funcional_transitiva)
+// {
+//   forma = 2;
+// }
+// if (dependencia_funcional_parcial)
+// {
+//   forma = 1;
 // }
 
-// void strToAttr(char *str_attr, attributes set)
-// {
-//   for (size_t i = 0; i < strlen(str_attr); i++)
-//   {
-//     set[charToIndex(str_attr[i])] = true;
-//   }
-// }
-
-// char *attrToStr(attributes set)
-// {
-//   int len = 0;
-//   for (int i = 0; i < ALPHABET_SIZE; i++)
-//   {
-//     if (set[i] == true)
-//     {
-//       len++;
-//     }
-//   }
-
-//   char *str = (char *)malloc(len + 1);
-//   memset(str, 0, len + 1);
-
-//   len = 0;
-//   for (int i = 0; i < ALPHABET_SIZE; i++)
-//   {
-//     if (set[i] == true)
-//     {
-//       str[len] = idxToChar(i);
-//       len++;
-//     }
-//   }
-
-//   return str;
-// }
-
-// void print_fds(FDList *list)
-// {
-//   for (size_t i = 0; i < list->size; i++)
-//   {
-//     FD _fd = list->fds[i];
-//     for (int j = 0; j < ALPHABET_SIZE; j++)
-//     {
-//       if (_fd.lhs[j] == true)
-//       {
-//         printf("%c", 'A' + j);
-//       }
-//     }
-//     printf("->");
-//     for (int j = 0; j < ALPHABET_SIZE; j++)
-//     {
-//       if (_fd.rhs[j] == true)
-//       {
-//         printf("%c", 'A' + j);
-//       }
-//     }
-//     printf("\n");
-//   }
-// }
-
-// /*************************************************************************************
-//  ******************************* DEBUG FUNCTIONS *************************************
-//  *************************************************************************************/
-
-// void print_debug(FDList *list)
-// {
-//   for (size_t i = 0; i < list->size; i++)
-//   {
-//     FD _fd = list->fds[i];
-//     printf("lhs\n");
-//     for (int i = 0; i < ALPHABET_SIZE; i++)
-//     {
-//       printf("%c: %s\n", 'A' + i, _fd.lhs[i] == 1 ? "true" : "false");
-//     }
-
-//     printf("\nrhs\n");
-//     for (int i = 0; i < ALPHABET_SIZE; i++)
-//     {
-//       printf("%c: %s\n", 'A' + i, _fd.rhs[i] == 1 ? "true" : "false");
-//     }
-//     printf("--------------------\n");
-//   }
-// }
-
-// void print_attr_debug(attributes attr)
-// {
-//   for (int i = 0; i < ALPHABET_SIZE; i++)
-//   {
-//     if (attr[i])
-//     {
-//       printf("%c: %s\n", i + 'A', attr[i] == true ? "true" : "false");
-//     }
-//   }
-// }
+// Ver se não existem atributos compostos ou multivalorados (1FN)
+// Ver se não existem dependencias funcionais parciais (2FN)
+// Ver se não existem dependencias funcionais transitivas (3FN)
+// Ver se todo lado determinante é uma superchave (BCNF)

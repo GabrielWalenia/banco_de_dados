@@ -4,7 +4,7 @@
 #define TAM_ALFABETO 26
 
 typedef char atributos[TAM_ALFABETO];
-
+extern atributos universo;
 struct dependencia
 {
     atributos lhs; // atributos que estão do lado esquerdo

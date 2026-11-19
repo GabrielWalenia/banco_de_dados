@@ -2,8 +2,48 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "fdtool.h"
 #include "entrada.h"
+
+void print_candidate_keys(atributos *cKeys, int keys_count)
+{
+    for (int i = 0; i < keys_count; i++)
+    {
+        for (int j = 0; j < TAM_ALFABETO; j++)
+        {
+            if (cKeys[i][j] == true)
+            {
+                printf("%c", 'A' + j);
+            }
+        }
+        printf("\n");
+    }
+}
+
+void print_fds(struct lista_dependencias *list)
+{
+    for (int i = 0; i < list->size; i++)
+    {
+        struct dependencia _fd = list->dep[i];
+        for (int j = 0; j < TAM_ALFABETO; j++)
+        {
+            if (_fd.lhs[j] == true)
+            {
+                printf("%c", 'A' + j);
+            }
+        }
+        printf("->");
+        for (int j = 0; j < TAM_ALFABETO; j++)
+        {
+            if (_fd.rhs[j] == true)
+            {
+                printf("%c", 'A' + j);
+            }
+        }
+        printf("\n");
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -33,11 +73,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-#ifdef _DEBUG_
-    print_debug(&list);
-    print_attr_debug(universe);
-#endif
-
     if (strcmp(cmd, "closure") == 0)
     {
         if (argc != 6)
@@ -55,5 +90,22 @@ int main(int argc, char *argv[])
         printf("%s\n", str);
     }
 
+    if (strcmp(cmd, "mincover") == 0)
+    {
+
+        list = mincover(list);
+        print_fds(list);
+    }
+    if (strcmp(cmd, "keys") == 0)
+    {
+        int keys_count;
+        atributos *cKeys = keys(list, &keys_count);
+        print_candidate_keys(cKeys, keys_count);
+    }
+
+    if (strcmp(cmd, "normalform") == 0)
+    {
+        normalform(list);
+    }
     return 0;
 }

@@ -10,8 +10,6 @@
 #define charToIndex(c) ((c) - 'A')
 #define idxToChar(idx) ((idx) + 'A')
 
-atributos universo = {0};
-
 char alfabeto[27] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 bool isInUniverse(char c)
@@ -21,7 +19,7 @@ bool isInUniverse(char c)
 
 bool isInAlphabet(char c)
 {
-    size_t len = strlen(alfabeto);
+    int len = strlen(alfabeto);
     for (int i = 0; i < len; i++)
     {
         if (c == alfabeto[i])
@@ -259,7 +257,7 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
 
 void gerar_atributos(char *buffer, atributos atr)
 {
-    for (int i = 0; i < strlen(buffer); i++)
+    for (int i = 0; i < (int)strlen(buffer); i++)
     {
         atr[charToIndex(buffer[i])] = 1;
     }
@@ -292,7 +290,7 @@ char *gerar_strings(atributos atr)
 }
 void imprimir_fds(struct lista_dependencias *list)
 {
-    for (size_t i = 0; i < list->size; i++)
+    for (int i = 0; i < list->size; i++)
     {
         struct dependencia _fd = list->dep[i];
         for (int j = 0; j < TAM_ALFABETO; j++)
@@ -317,7 +315,7 @@ void imprimir_fds(struct lista_dependencias *list)
 // Debugar
 void print_debug(struct lista_dependencias *list)
 {
-    for (size_t i = 0; i < list->size; i++)
+    for (int i = 0; i < list->size; i++)
     {
         struct dependencia _fd = list->dep[i];
         printf("lhs\n");
