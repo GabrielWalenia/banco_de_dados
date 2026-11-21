@@ -4,8 +4,11 @@
 #include <string.h>
 #include "fdtool.h"
 #include "entrada.h"
+#include "lista.h"
 
 #define VIOLATIONS_LIST_SIZE 64
+
+atributos universo = {0};
 
 // -----------------------------------------------------------------------------------------
 // Funções do fecho
@@ -86,18 +89,6 @@ void separar_lado_direito(struct lista_dependencias *antiga,
     }
   }
 }
-
-//  aux->size = c->size -1;
-//     aux->dep = malloc(sizeof(struct dependencia) * aux->size);
-
-//     int cont = 0;
-
-//     for(int j = 0; j < c->size; j++){
-//       if(i != j){
-//         aux->dep[cont] = c->dep[j];
-//         cont++;
-//       }
-//     }
 
 bool verificar_conjuto(atributos rhs, char *fecho)
 {
@@ -187,10 +178,6 @@ void tirar_transitividade(struct lista_dependencias *c)
 
 struct lista_dependencias *mincover(struct lista_dependencias *d)
 {
-  // cada dependência funcional possui apenas um atributo no lado direito;
-  // não existem atributos desnecessários no lado esquerdo;
-  // não existem dependências funcionais redundantes.
-
   if (d == NULL)
   {
     fprintf(stderr, "Paramentro lista_dependencias é nulo\n");
@@ -218,140 +205,7 @@ struct lista_dependencias *mincover(struct lista_dependencias *d)
 // ----------------------------------------------------------------------------------------
 // Funcões da chave
 
-// MUDAR
-atributos universo = {0};
-
-typedef struct Node
-{
-  /**
-   * @var Conjunto de atributos.
-   */
-  atributos attrs;
-
-  /**
-   * @var Ponteiro para próximo nó.
-   */
-  struct Node *next;
-} Node;
-
-/**
- * @brief Esta estrutura define uma fila. Usada para
- * encontrar as chaves candidatas usando BFS.
- */
-typedef struct Queue
-{
-  /**
-   * var Ponteiro para o início da fila;
-   */
-  struct Node *front;
-
-  /**
-   * var Ponteiro para o final da fila;
-   */
-  struct Node *back;
-} Queue;
-
-/**
- * @brief Inicializa uma fila.
- *
- * @param q Uma fila.
- */
-static void queue_init(Queue *q);
-
-/**
- * @brief Verifica se uma fila está vazia.
- *
- * @param q Uma fila.
- */
-static bool queue_empty(Queue *q);
-
-/**
- * @brief Enfileira um conjunto de atributos numa fila.
- *
- * @param q Uma fila.
- * @param attrSet Conjunto de atributos.
- */
-static void enqueue(Queue *q, atributos attrSet);
-
-/**
- * @brief Retira um conjunto de atributos de uma fila.
- *
- * @param q Uma fila.
- * @param out Conjunto de atributos (saída).
- */
-static void dequeue(Queue *q, atributos out);
-
-/**
- * @brief Verifica se conjunto a é um subconjunto do conjunto b.
- *
- * @param a Conjunto de atributos.
- * @param b Conjunto de atributos.
- * @return True, caso a seja subconjunto de b, False, caso contrário.
- */
-static bool isSubset(atributos a, atributos b);
-
-/**
- * @brief Verifica se o conjunto a é coberto pelo fecho.
- *
- * @param a Conjunto de atributos.
- * @param closure Conjunto de atributos.
- * @return True, caso a seja coberto pelo fecho, False, caso contrário.
- */
-static bool isCoveredByClosure(atributos a, atributos closure);
-
-static void queue_init(Queue *q)
-{
-  q->back = NULL;
-  q->front = NULL;
-}
-
-static bool queue_empty(Queue *q)
-{
-  return q->front == NULL;
-}
-
-static void enqueue(Queue *q, atributos attrSet)
-{
-  Node *node = (Node *)malloc(sizeof(Node));
-  if (node == NULL)
-  {
-    printf("ERROR! Couldn't allocate memory for Queue Node at file %s at line "
-           "%d\n",
-           __FILE__, __LINE__);
-    exit(1);
-  }
-  memcpy(node->attrs, attrSet, sizeof(atributos));
-  node->next = NULL;
-
-  if (q->back == NULL)
-  {
-    q->front = q->back = node;
-  }
-  else
-  {
-    q->back->next = node;
-    q->back = node;
-  }
-}
-
-static void dequeue(Queue *q, atributos out)
-{
-  if (q->front == NULL)
-  {
-    return;
-  }
-
-  Node *temp = q->front;
-  memcpy(out, temp->attrs, sizeof(atributos));
-  q->front = temp->next;
-  if (q->front == NULL)
-  {
-    q->back = NULL;
-  }
-  free(temp);
-}
-
-static bool isSubset(atributos a, atributos b)
+bool eh_subconjunto(char *a, char *b)
 {
   for (int i = 0; i < TAM_ALFABETO; i++)
   {
@@ -363,11 +217,11 @@ static bool isSubset(atributos a, atributos b)
   return true;
 }
 
-static bool isCoveredByClosure(atributos a, atributos closure)
+bool esta_no_fecho(char *atr, char *fecho)
 {
   for (int i = 0; i < TAM_ALFABETO; i++)
   {
-    if (a[i] && !closure[i])
+    if (atr[i] && !fecho[i])
     {
       return false;
     }
@@ -398,51 +252,62 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
     }
   }
 
-  Queue q;
-  queue_init(&q);
-  enqueue(&q, essenciais);
+  struct fila *f;
+  f = cria_fila();
+  if (!f)
+  {
+    fprintf(stderr, "Falha ao alocar memória para fila");
+    return NULL;
+  }
+
+  insere_fila(essenciais, f);
 
   int key_count = 0;
-  int keys_size = 32;
+  int keys_size = 26;
+  // o pior numero de chaves possivel que pode ter é 26 * 26
   atributos *keys = malloc(sizeof(atributos) * keys_size);
   if (keys == NULL)
   {
-    printf("ERROR! Couldn't allocate memory to candidate keys array at file %s "
-           "at line %d\n",
-           __FILE__, __LINE__);
-    exit(1);
+    fprintf(stderr, "ERRO ao alocar memória para as chaves\n");
+    return NULL;
   }
 
-  while (!queue_empty(&q))
+  while (!fila_vazia(f))
   {
-    atributos current = {0};
-    atributos closureSet = {0};
+    struct node *atual;
+    atributos atr = {0};
 
-    dequeue(&q, current);
-    memcpy(closureSet, current, sizeof(atributos));
-
-    char *fecho = closure(closureSet, l);
-
-    bool isSuperKey = true;
-    if (!isCoveredByClosure(universo, fecho))
+    atual = retira_fila(f);
+    if (atual == NULL)
     {
-      isSuperKey = false;
+      fprintf(stderr, "Erro ao retirar elemento da fila\n");
+      break;
     }
 
-    if (isSuperKey)
+    memcpy(atr, atual->atr, sizeof(atributos));
+
+    char *fecho = closure(atr, l);
+
+    bool superchave = true;
+    if (!esta_no_fecho(universo, fecho))
     {
-      bool isKeyMinimum = true;
+      superchave = false;
+    }
+
+    if (superchave)
+    {
+      bool conjunto_minimo = true;
       for (int i = 0; i < key_count; i++)
       {
-        if (isSubset(keys[i], current))
+        if (eh_subconjunto(keys[i], atual->atr))
         {
-          isKeyMinimum = false;
+          conjunto_minimo = false;
         }
       }
-
-      if (isKeyMinimum)
+      if (conjunto_minimo)
       {
-        memcpy(keys[key_count], current, sizeof(atributos));
+        memcpy(keys[key_count], atual->atr, sizeof(atributos));
+        printf("count++\n");
         key_count++;
         if (key_count >= keys_size)
         {
@@ -450,56 +315,39 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
           keys = realloc(keys, sizeof(atributos) * keys_size);
         }
       }
-
       continue;
     }
 
-    for (size_t i = 0; i < TAM_ALFABETO; i++)
+    for (int i = 0; i < TAM_ALFABETO; i++)
     {
-      if (!universo[i] || current[i])
+      if (!universo[i] || atual->atr[i])
       {
         continue;
       }
 
       atributos next = {0};
-      memcpy(next, current, sizeof(atributos));
-      next[i] = true;
+      memcpy(next, atual->atr, sizeof(atributos));
+      next[i] = 1;
 
-      bool isAlreadySuperKey = false;
+      bool ja_eh_superchave = false;
       for (int j = 0; j < key_count; j++)
       {
-        if (isSubset(keys[j], next))
+        if (eh_subconjunto(keys[j], next))
         {
-          isAlreadySuperKey = true;
+          ja_eh_superchave = true;
         }
       }
-
-      if (!isAlreadySuperKey)
+      if (!ja_eh_superchave)
       {
-        enqueue(&q, next);
+        insere_fila(next, f);
       }
     }
+    printf("Chegou ds até aqui\n");
   }
 
   *num_chaves = key_count;
   return keys;
-  // Achar superchaves com o fecho
-  // Para cada d->lhs[i] pertencente a d faca
-  //   calcular fecho do atributo
-  //   se fecho == R
-  //     superchave <- atr
-  //     chave_candidata <- atr
-  //     para cada subconjunto de dhs[i] faca
-  //     se fecho(subconjunto) == r
-  //       chave_candidata <- subconjunto
-  //     fimse
-  //   fimse
-  // fimpara
-
-  // Calcular chaves candidatas
-  // Retornar conjunto de chaves candidatas
 }
-
 // --------------------------------------------------------------------------------
 // Funções da forma normal
 
@@ -536,20 +384,20 @@ void normalform(struct lista_dependencias *d)
     }
   }
 
-  atributos BCNFViolationsList[VIOLATIONS_LIST_SIZE];
+  atributos violacoes_BCNF[VIOLATIONS_LIST_SIZE];
   int BCNF_RHS[VIOLATIONS_LIST_SIZE];
-  int BCNFCount = 0;
+  int BCNF_count = 0;
 
-  atributos _3FNViolationsList[VIOLATIONS_LIST_SIZE];
+  atributos violacoes_3NF[VIOLATIONS_LIST_SIZE];
   int _3FN_RHS[VIOLATIONS_LIST_SIZE];
-  int _3FNCount = 0;
+  int _3FN_count = 0;
 
   for (int i = 0; i < cobertura_minima->size; i++)
   {
     struct dependencia dep = cobertura_minima->dep[i];
     int rhsIdx;
 
-    for (size_t j = 0; j < TAM_ALFABETO; j++)
+    for (int j = 0; j < TAM_ALFABETO; j++)
     {
       if (dep.rhs[j])
       {
@@ -562,67 +410,91 @@ void normalform(struct lista_dependencias *d)
       continue;
     }
 
-    atributos closureSet = {0};
-    memcpy(closureSet, dep.lhs, sizeof(atributos));
-    char *fecho = closure(closureSet, cobertura_minima);
+    atributos atr = {0};
+    memcpy(atr, dep.lhs, sizeof(atributos));
+    char *fecho = closure(atr, cobertura_minima);
 
-    bool isSuperkey = equals(fecho, universo);
-    bool rhsIsPrime = atributo_primo[rhsIdx];
+    bool superchave = equals(fecho, universo);
+    bool rhs_primo = atributo_primo[rhsIdx];
 
-    if (!isSuperkey)
+    if (!superchave)
     {
-      memcpy(BCNFViolationsList[BCNFCount], dep.lhs, sizeof(atributos));
-      BCNF_RHS[BCNFCount] = rhsIdx;
-      BCNFCount++;
+      memcpy(violacoes_BCNF[BCNF_count], dep.lhs, sizeof(atributos));
+      BCNF_RHS[BCNF_count] = rhsIdx;
+      BCNF_count++;
     }
 
-    if (!isSuperkey && !rhsIsPrime)
+    if (!superchave && !rhs_primo)
     {
-      memcpy(_3FNViolationsList[_3FNCount], dep.lhs, sizeof(atributos));
-      _3FN_RHS[_3FNCount] = rhsIdx;
-      _3FNCount++;
+      memcpy(violacoes_3NF[_3FN_count], dep.lhs, sizeof(atributos));
+      _3FN_RHS[_3FN_count] = rhsIdx;
+      _3FN_count++;
     }
   }
 
-  if (BCNFCount > 0)
+  if (BCNF_count > 0)
   {
     printf("BCNF: VIOLATIONS\n");
   }
 
-  if (_3FNCount > 0)
+  if (_3FN_count > 0)
   {
     printf("3NF: VIOLATIONS\n");
   }
 
-  for (int i = 0; i < BCNFCount; i++)
+  for (int i = 0; i < BCNF_count; i++)
   {
     printf("VIOLATION BCNF: %s->%c (%s not superkey)\n",
-           gerar_strings(BCNFViolationsList[i]), 'A' + BCNF_RHS[i],
-           gerar_strings(BCNFViolationsList[i]));
+           gerar_strings(violacoes_BCNF[i]), 'A' + BCNF_RHS[i],
+           gerar_strings(violacoes_BCNF[i]));
   }
 
-  for (int i = 0; i < _3FNCount; i++)
+  for (int i = 0; i < _3FN_count; i++)
   {
     printf("VIOLATION 3NF: %s->%c (%c not prime, %s not superkey)\n",
-           gerar_strings(_3FNViolationsList[i]), 'A' + _3FN_RHS[i],
-           'A' + _3FN_RHS[i], gerar_strings(_3FNViolationsList[i]));
+           gerar_strings(violacoes_3NF[i]), 'A' + _3FN_RHS[i],
+           'A' + _3FN_RHS[i], gerar_strings(violacoes_3NF[i]));
   }
 }
-// int forma = 4;
-// if (!determinante_superchave)
-// {
-//   forma = 3;
-// }
-// if (dependencia_funcional_transitiva)
-// {
-//   forma = 2;
-// }
-// if (dependencia_funcional_parcial)
-// {
-//   forma = 1;
-// }
 
-// Ver se não existem atributos compostos ou multivalorados (1FN)
-// Ver se não existem dependencias funcionais parciais (2FN)
-// Ver se não existem dependencias funcionais transitivas (3FN)
-// Ver se todo lado determinante é uma superchave (BCNF)
+//------------------------------------------------------------------------------------
+// Funções de impressão
+
+void imprimir_chaves(atributos *cKeys, int keys_count)
+{
+  for (int i = 0; i < keys_count; i++)
+  {
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (cKeys[i][j] == true)
+      {
+        printf("%c", 'A' + j);
+      }
+    }
+    printf("\n");
+  }
+}
+
+void imprimir_dependencia(struct lista_dependencias *list)
+{
+  for (int i = 0; i < list->size; i++)
+  {
+    struct dependencia _fd = list->dep[i];
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (_fd.lhs[j] == true)
+      {
+        printf("%c", 'A' + j);
+      }
+    }
+    printf("->");
+    for (int j = 0; j < TAM_ALFABETO; j++)
+    {
+      if (_fd.rhs[j] == true)
+      {
+        printf("%c", 'A' + j);
+      }
+    }
+    printf("\n");
+  }
+}

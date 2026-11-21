@@ -6,45 +6,6 @@
 #include "fdtool.h"
 #include "entrada.h"
 
-void print_candidate_keys(atributos *cKeys, int keys_count)
-{
-    for (int i = 0; i < keys_count; i++)
-    {
-        for (int j = 0; j < TAM_ALFABETO; j++)
-        {
-            if (cKeys[i][j] == true)
-            {
-                printf("%c", 'A' + j);
-            }
-        }
-        printf("\n");
-    }
-}
-
-void print_fds(struct lista_dependencias *list)
-{
-    for (int i = 0; i < list->size; i++)
-    {
-        struct dependencia _fd = list->dep[i];
-        for (int j = 0; j < TAM_ALFABETO; j++)
-        {
-            if (_fd.lhs[j] == true)
-            {
-                printf("%c", 'A' + j);
-            }
-        }
-        printf("->");
-        for (int j = 0; j < TAM_ALFABETO; j++)
-        {
-            if (_fd.rhs[j] == true)
-            {
-                printf("%c", 'A' + j);
-            }
-        }
-        printf("\n");
-    }
-}
-
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -94,13 +55,14 @@ int main(int argc, char *argv[])
     {
 
         list = mincover(list);
-        print_fds(list);
+        imprimir_dependencia(list);
     }
     if (strcmp(cmd, "keys") == 0)
     {
         int keys_count;
         atributos *cKeys = keys(list, &keys_count);
-        print_candidate_keys(cKeys, keys_count);
+        printf("%d\n", keys_count);
+        imprimir_chaves(cKeys, keys_count);
     }
 
     if (strcmp(cmd, "normalform") == 0)
