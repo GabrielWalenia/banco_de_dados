@@ -1,4 +1,13 @@
-all:
-	gcc -Wall -Wextra main.c lista.c entrada.c fdtool.c -o fdtool
-debug:
-	gcc -Wall -Wextra -g main.c lista.c fdtool.c entrada.c -o fdtool
+# Makefile para a geração do executavel fdtool
+
+CC = gcc
+FLAGS = -std=c11 -Wall -Wextra
+
+all: main.c fdtool.c entrada.c lista.c
+	$(CC) $(FLAGS) main.c fdtool.c entrada.c lista.c -o fdtool
+
+debug: CFLAGS += -DDEBUG -g
+debug: all
+
+clean:
+	rm fdtool

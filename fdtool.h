@@ -7,8 +7,8 @@ typedef char atributos[TAM_ALFABETO];
 extern atributos universo;
 struct dependencia
 {
-    atributos lhs; // atributos que estão do lado esquerdo
-    atributos rhs; // atributos que estão do lado direito
+    atributos lhs;
+    atributos rhs;
 };
 
 struct lista_dependencias

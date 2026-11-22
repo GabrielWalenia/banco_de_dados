@@ -41,7 +41,7 @@ FILE *abrir_arquivo(char *path)
 
     if (!arquivo)
     {
-        fprintf(stderr, "Erro! Não foi possível abrir o arquivo");
+        fprintf(stderr, "Erro! Não foi possível abrir o arquivo\n");
         return NULL;
     }
 
@@ -53,7 +53,7 @@ int calcular_tamanho(char *conteudo)
     char *primeira_ocorrencia = strchr(conteudo, 'F');
     if (!primeira_ocorrencia)
     {
-        fprintf(stderr, "Erro ao achar inicio das dependencias funcionais");
+        fprintf(stderr, "Erro ao achar inicio das dependencias funcionais\n");
         return -1;
     }
 
@@ -169,15 +169,8 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
 
     while (caractere != '\0')
     {
-        if (caractere == '#') // Pular comentários
-        {
-            while (conteudo[i] != '\n' && conteudo[i] != '\0')
-            {
-                i++;
-            }
-        }
 
-        else if (caractere == 'U')
+        if (caractere == 'U')
         {
             while (conteudo[i] != '{' && conteudo[i] != '\0')
             {

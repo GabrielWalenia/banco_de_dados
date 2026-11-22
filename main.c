@@ -10,11 +10,11 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("USAGE: ./%s closure --fds <arquivo.fds> --X <ATRIBUTOS>\n",
+        printf("USO: ./%s closure --fds <arquivo.fds> --X <ATRIBUTOS>\n",
                argv[0]);
-        printf("USAGE: ./%s mincover --fds <arquivo.fds>\n", argv[0]);
-        printf("USAGE: ./%s keys --fds <arquivo.fds>\n", argv[0]);
-        printf("USAGE: ./%s normalform --fds <arquivo.fds>\n", argv[0]);
+        printf("USO: ./%s mincover --fds <arquivo.fds>\n", argv[0]);
+        printf("USO: ./%s keys --fds <arquivo.fds>\n", argv[0]);
+        printf("USO: ./%s normalform --fds <arquivo.fds>\n", argv[0]);
         return 1;
     }
 
@@ -57,6 +57,11 @@ int main(int argc, char *argv[])
     {
 
         struct lista_dependencias *c = mincover(list);
+        if (!c)
+        {
+            fprintf(stderr, "Erro ao excutar função mincover");
+            return -1;
+        }
         imprimir_dependencia(c);
         liberar_lista(c);
     }

@@ -6,8 +6,6 @@
 #include "entrada.h"
 #include "lista.h"
 
-#define VIOLATIONS_LIST_SIZE 64
-
 atributos universo = {0};
 
 // -----------------------------------------------------------------------------------------
@@ -27,8 +25,6 @@ int verificar_lado_equerdo(atributos lhs, atributos fecho)
 
 char *closure(atributos atr, struct lista_dependencias *d)
 {
-  // fecho = os proprios atributos
-  // Lembrar de fechar
   char *fecho = malloc(TAM_ALFABETO);
   if (!fecho)
   {
@@ -271,7 +267,7 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
 
   int key_count = 0;
   int keys_size = 26;
-  // o pior numero de chaves possivel que pode ter é 26 * 26
+
   atributos *keys = malloc(sizeof(atributos) * keys_size);
   if (keys == NULL)
   {
@@ -382,10 +378,23 @@ static bool equals(char *a, char *b)
 void normalform(struct lista_dependencias *d)
 {
 
-  struct lista_dependencias *cobertura_minima = mincover(d);
-
+  struct lista_dependencias *lado_direito_unico = malloc(sizeof(struct lista_dependencias));
+  if (!lado_direito_unico)
+  {
+    fprintf(stderr, "Erro ao alocar memória para a lista de dependencias\n");
+    exit(1);
+  }
+  lado_direito_unico->dep = malloc(sizeof(struct dependencia) * d->size * TAM_ALFABETO);
+  if (lado_direito_unico->dep == NULL)
+  {
+    fprintf(stderr, "Erro ao alocar memória para a lista de dependencias\n");
+    free(lado_direito_unico);
+    exit(1);
+  }
+  lado_direito_unico->size = 0;
+  separar_lado_direito(d, lado_direito_unico);
   int num_chaves = 0;
-  atributos *k = keys(cobertura_minima, &num_chaves);
+  atributos *k = keys(lado_direito_unico, &num_chaves);
 
   atributos atributo_primo = {0};
 
@@ -401,17 +410,38 @@ void normalform(struct lista_dependencias *d)
   }
   free(k);
 
-  atributos violacoes_BCNF[VIOLATIONS_LIST_SIZE];
-  int BCNF_RHS[VIOLATIONS_LIST_SIZE];
+  atributos *violacoes_BCNF = malloc(sizeof(atributos) * lado_direito_unico->size);
+  if (!violacoes_BCNF)
+  {
+    fprintf(stderr, "Não foi possível alocar memória para as violações BCNF!\n");
+    exit(1);
+  }
+  int *BCNF_RHS = malloc(sizeof(int) * lado_direito_unico->size);
+  if (!BCNF_RHS)
+  {
+    fprintf(stderr, "Não foi possível alocar memória para o vetor!\n");
+    exit(1);
+  }
   int BCNF_count = 0;
 
-  atributos violacoes_3NF[VIOLATIONS_LIST_SIZE];
-  int _3FN_RHS[VIOLATIONS_LIST_SIZE];
+  atributos *violacoes_3NF = malloc(sizeof(atributos) * lado_direito_unico->size);
+  if (!violacoes_3NF)
+  {
+    fprintf(stderr, "Não foi possível alocar memória para as violações 3NF!\n");
+    exit(1);
+  }
+  int *_3FN_RHS = malloc(sizeof(int) * lado_direito_unico->size);
+
+  if (!BCNF_RHS)
+  {
+    fprintf(stderr, "Não foi possível alocar memória para o vetor!\n");
+    exit(1);
+  }
   int _3FN_count = 0;
 
-  for (int i = 0; i < cobertura_minima->size; i++)
+  for (int i = 0; i < lado_direito_unico->size; i++)
   {
-    struct dependencia dep = cobertura_minima->dep[i];
+    struct dependencia dep = lado_direito_unico->dep[i];
     int rhsIdx;
 
     for (int j = 0; j < TAM_ALFABETO; j++)
@@ -429,7 +459,7 @@ void normalform(struct lista_dependencias *d)
 
     atributos atr = {0};
     memcpy(atr, dep.lhs, sizeof(atributos));
-    char *fecho = closure(atr, cobertura_minima);
+    char *fecho = closure(atr, lado_direito_unico);
 
     bool superchave = equals(fecho, universo);
     bool rhs_primo = atributo_primo[rhsIdx];
@@ -454,10 +484,18 @@ void normalform(struct lista_dependencias *d)
   {
     printf("BCNF: VIOLATIONS\n");
   }
+  else
+  {
+    printf("BCNF: OK\n");
+  }
 
   if (_3FN_count > 0)
   {
     printf("3NF: VIOLATIONS\n");
+  }
+  else
+  {
+    printf("3NF: OK\n");
   }
 
   for (int i = 0; i < BCNF_count; i++)
@@ -476,7 +514,11 @@ void normalform(struct lista_dependencias *d)
            str, 'A' + _3FN_RHS[i],
            'A' + _3FN_RHS[i], str);
   }
-  liberar_lista(cobertura_minima);
+  free(violacoes_BCNF);
+  free(BCNF_RHS);
+  free(violacoes_3NF);
+  free(_3FN_RHS);
+  liberar_lista(lado_direito_unico);
 }
 
 //------------------------------------------------------------------------------------

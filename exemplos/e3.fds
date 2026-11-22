@@ -1,4 +1,2 @@
-# X -> Z é redundante
-
-U = {X, Y, Z, W}
-F = {X->Y, Y->Z, X->Z, Z->W}
+U = {A,B,C}
+F = {AB->C, C->B}
