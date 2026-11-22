@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     {
         if (argc != 6)
         {
-            printf("ERROR! Must have <ATRIBUTOS>\n");
+            printf("ERRO! Precisa ter <ATRIBUTOS>\n");
             return 1;
         }
 
@@ -49,25 +49,33 @@ int main(int argc, char *argv[])
         char *fecho = closure(closureSet, list);
         char *str = gerar_strings(fecho);
         printf("%s\n", str);
+        free(str);
+        free(fecho);
     }
 
     if (strcmp(cmd, "mincover") == 0)
     {
 
-        list = mincover(list);
-        imprimir_dependencia(list);
+        struct lista_dependencias *c = mincover(list);
+        imprimir_dependencia(c);
+        liberar_lista(c);
     }
     if (strcmp(cmd, "keys") == 0)
     {
         int keys_count;
         atributos *cKeys = keys(list, &keys_count);
-        printf("%d\n", keys_count);
-        imprimir_chaves(cKeys, keys_count);
+        if (cKeys)
+        {
+            imprimir_chaves(cKeys, keys_count);
+            free(cKeys);
+        }
     }
 
     if (strcmp(cmd, "normalform") == 0)
     {
         normalform(list);
     }
+
+    liberar_lista(list);
     return 0;
 }

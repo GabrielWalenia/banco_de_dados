@@ -25,10 +25,13 @@ void destroi_fila(struct fila *f)
         return;
     }
 
-    for (struct node *aux = f->front; aux != NULL; aux = aux->next)
+    struct node *aux = f->front;
+    while (aux)
     {
-        free(f->front);
-        f->front = aux->next;
+        struct node *prox = aux->next;
+        free(aux->atr);
+        free(aux);
+        aux = prox;
     }
     free(f);
 }
@@ -78,30 +81,21 @@ int insere_fila(char *inserir, struct fila *f)
 
 struct node *retira_fila(struct fila *f)
 {
-
-    if (f == NULL)
+    if (!f || f->front == NULL)
     {
-        fprintf(stderr, "f nulo!\n");
+        fprintf(stderr, "Erro ao retirar da fila\n");
         return NULL;
     }
 
-    if (f->back == NULL && f->front == NULL)
-    {
-        fprintf(stderr, "fila já está vazia\n");
-        return NULL;
-    }
     struct node *aux = f->front;
     f->front = aux->next;
-    if (f->back == f->front)
+    if (f->front == NULL)
     {
-        f->front = NULL;
         f->back = NULL;
-        return aux;
     }
-    else
-    {
-        return aux;
-    }
+
+    aux->next = NULL;
+    return aux;
 }
 
 int fila_vazia(struct fila *f)

@@ -34,4 +34,6 @@ void normalform(struct lista_dependencias *d);
 
 void imprimir_dependencia(struct lista_dependencias *list);
 
+void liberar_lista(struct lista_dependencias *l);
+
 #endif

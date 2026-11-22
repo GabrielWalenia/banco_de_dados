@@ -33,7 +33,7 @@ FILE *abrir_arquivo(char *path)
 {
     if (!path)
     {
-        fprintf(stderr, "Erro! Caminho não especificado");
+        fprintf(stderr, "Erro! Caminho não especificado\n");
         return NULL;
     }
 
@@ -102,7 +102,7 @@ char *le_arquivo(FILE *arquivo)
 {
     if (!arquivo)
     {
-        fprintf(stderr, "Arquivo não especificado");
+        fprintf(stderr, "Arquivo não especificado\n");
         return NULL;
     }
 
@@ -114,17 +114,17 @@ char *le_arquivo(FILE *arquivo)
 
     // Lembrar de fechar
     char *conteudo = (char *)malloc(tamanho_arquivo);
-
+    if (!conteudo)
+    {
+        fprintf(stderr, "falha ao alocar memória para o conteudo\n");
+        return NULL;
+    }
     size_t bytes_lidos = fread(conteudo, 1, tamanho_arquivo, arquivo);
 
     conteudo[bytes_lidos] = '\0';
     fclose(arquivo);
     return conteudo;
 }
-// static char isInUniverse(char c)
-// {
-//     return universo[charToIndex(c)];
-// }
 
 struct lista_dependencias *gera_lista_dependencias(FILE *arq)
 {
@@ -137,13 +137,20 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
     char *conteudo = le_arquivo(arq);
     if (!conteudo)
     {
-        fprintf(stderr, "Não foi possível extrair o conteudo do arquivo");
+        fprintf(stderr, "Não foi possível extrair o conteudo do arquivo\n");
+        fclose(arq);
         return NULL;
     }
 
     // Não esquecer de liberar espaço depois
     struct lista_dependencias *l =
         (struct lista_dependencias *)malloc(sizeof(struct lista_dependencias));
+    if (!l)
+    {
+        fprintf(stderr, "Erro ao alocar lista de dependências!\n");
+        free(conteudo);
+        return NULL;
+    }
     l->size = calcular_tamanho(conteudo);
     // Lembrar de fechar
     l->dep = (struct dependencia *)malloc(sizeof(struct dependencia) * l->size);
@@ -151,6 +158,8 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
     if (!l->dep)
     {
         fprintf(stderr, "Erro ao alocar memória para lista de dependencias!\n");
+        free(conteudo);
+        free(l);
         return NULL;
     }
 
@@ -168,15 +177,13 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
             }
         }
 
-        // Decisão: Todos os atributos podem estar ativados
-        // Melhor não deixar assim no final, mas para testar eu vou fazer com todos ativados
         else if (caractere == 'U')
         {
             while (conteudo[i] != '{' && conteudo[i] != '\0')
             {
                 i++;
             }
-            i++; // Pula '{'
+            i++;
 
             while (conteudo[i] != '}' && conteudo[i] != '\0')
             {
@@ -194,14 +201,12 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
             {
                 i++;
             }
-            i++; // Pula '{'
+            i++;
 
             while (conteudo[i] != '}' && conteudo[i] != '\0')
             {
                 atributos lhs = {0};
                 atributos rhs = {0};
-
-                // printf("content[i]: %c, %d, %s\n", content[i], __LINE__, __FILE__);
 
                 while ((conteudo[i] != '-' && conteudo[i] != '\0'))
                 {
@@ -252,6 +257,7 @@ struct lista_dependencias *gera_lista_dependencias(FILE *arq)
         i++;
         caractere = conteudo[i];
     }
+    free(conteudo);
     return l;
 }
 

@@ -121,11 +121,12 @@ void tirar_atributos_desnecessarios(struct lista_dependencias *c)
         fecho = closure(atr, c);
 
         bool desnecessario = false;
+
         if (verificar_conjuto(d->rhs, fecho))
         {
           desnecessario = true;
         }
-
+        free(fecho);
         if (desnecessario)
           d->lhs[j] = 0;
       }
@@ -191,6 +192,12 @@ struct lista_dependencias *mincover(struct lista_dependencias *d)
   // Por enquanto a cobertura minima é uma cópia das dependencias passadas
 
   cobertura_minima->dep = malloc(sizeof(struct dependencia) * d->size * TAM_ALFABETO);
+  if (cobertura_minima->dep == NULL)
+  {
+    fprintf(stderr, "Erro ao alocar memória para a lista de dependencias\n");
+    free(cobertura_minima);
+    return NULL;
+  }
   cobertura_minima->size = 0;
 
   separar_lado_direito(d, cobertura_minima);
@@ -285,7 +292,8 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
     }
 
     memcpy(atr, atual->atr, sizeof(atributos));
-
+    free(atual->atr);
+    free(atual);
     char *fecho = closure(atr, l);
 
     bool superchave = true;
@@ -294,25 +302,33 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
       superchave = false;
     }
 
+    free(fecho);
     if (superchave)
     {
       bool conjunto_minimo = true;
       for (int i = 0; i < key_count; i++)
       {
-        if (eh_subconjunto(keys[i], atual->atr))
+        if (eh_subconjunto(keys[i], atr))
         {
           conjunto_minimo = false;
         }
       }
       if (conjunto_minimo)
       {
-        memcpy(keys[key_count], atual->atr, sizeof(atributos));
-        printf("count++\n");
+        memcpy(keys[key_count], atr, sizeof(atributos));
         key_count++;
         if (key_count >= keys_size)
         {
           keys_size *= 2;
-          keys = realloc(keys, sizeof(atributos) * keys_size);
+          atributos *tmp = realloc(keys, sizeof(atributos) * keys_size);
+          if (!tmp)
+          {
+            fprintf(stderr, "Erro ao realocar memória");
+            free(keys);
+            destroi_fila(f);
+            return NULL;
+          }
+          keys = tmp;
         }
       }
       continue;
@@ -320,13 +336,13 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
 
     for (int i = 0; i < TAM_ALFABETO; i++)
     {
-      if (!universo[i] || atual->atr[i])
+      if (!universo[i] || atr[i])
       {
         continue;
       }
 
       atributos next = {0};
-      memcpy(next, atual->atr, sizeof(atributos));
+      memcpy(next, atr, sizeof(atributos));
       next[i] = 1;
 
       bool ja_eh_superchave = false;
@@ -342,9 +358,9 @@ atributos *keys(struct lista_dependencias *l, int *num_chaves)
         insere_fila(next, f);
       }
     }
-    printf("Chegou ds até aqui\n");
   }
 
+  destroi_fila(f);
   *num_chaves = key_count;
   return keys;
 }
@@ -383,6 +399,7 @@ void normalform(struct lista_dependencias *d)
       }
     }
   }
+  free(k);
 
   atributos violacoes_BCNF[VIOLATIONS_LIST_SIZE];
   int BCNF_RHS[VIOLATIONS_LIST_SIZE];
@@ -416,6 +433,7 @@ void normalform(struct lista_dependencias *d)
 
     bool superchave = equals(fecho, universo);
     bool rhs_primo = atributo_primo[rhsIdx];
+    free(fecho);
 
     if (!superchave)
     {
@@ -444,17 +462,21 @@ void normalform(struct lista_dependencias *d)
 
   for (int i = 0; i < BCNF_count; i++)
   {
+    char *str = gerar_strings(violacoes_BCNF[i]);
     printf("VIOLATION BCNF: %s->%c (%s not superkey)\n",
-           gerar_strings(violacoes_BCNF[i]), 'A' + BCNF_RHS[i],
-           gerar_strings(violacoes_BCNF[i]));
+           str, 'A' + BCNF_RHS[i],
+           str);
+    free(str);
   }
 
   for (int i = 0; i < _3FN_count; i++)
   {
+    char *str = gerar_strings(violacoes_BCNF[i]);
     printf("VIOLATION 3NF: %s->%c (%c not prime, %s not superkey)\n",
-           gerar_strings(violacoes_3NF[i]), 'A' + _3FN_RHS[i],
-           'A' + _3FN_RHS[i], gerar_strings(violacoes_3NF[i]));
+           str, 'A' + _3FN_RHS[i],
+           'A' + _3FN_RHS[i], str);
   }
+  liberar_lista(cobertura_minima);
 }
 
 //------------------------------------------------------------------------------------
@@ -497,4 +519,14 @@ void imprimir_dependencia(struct lista_dependencias *list)
     }
     printf("\n");
   }
+}
+
+//---------------------------------------------------------------------------------------------
+// Funções auxiliares
+void liberar_lista(struct lista_dependencias *l)
+{
+  if (!l)
+    return;
+  free(l->dep);
+  free(l);
 }
